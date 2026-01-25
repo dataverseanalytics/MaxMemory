@@ -1,0 +1,27 @@
+# FastAPI and ASGI server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy
+alembic
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[argon2]
+pydantic[email]
+pydantic-settings
+
+# Google OAuth
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+
+# Email
+python-dotenv
+emails
+jinja2
+
+# Utilities
+python-dateutil
