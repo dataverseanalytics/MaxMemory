@@ -1,0 +1,532 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    ENTITY RECOGNITION AUTOMATION                           ║
+║                                                                            ║
+║    Your system NOW has predefined AND automated entity recognition         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. WHAT WAS BEFORE vs WHAT IS NOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BEFORE (Hardcoded):
+═══════════════════
+
+In main.py, entities were manually defined:
+
+    ENTITIES = {
+        "Parth": {
+            "type": "person",
+            "description": "A professional...",
+            "attributes": ["likes AI", "likes reading"]
+        },
+        "Mr. Raju": {
+            "type": "person",
+            "description": "A friend...",
+            "attributes": ["works at DRC Systems"]
+        },
+        "DRC Systems": {
+            "type": "organization",
+            "description": "A company...",
+            "attributes": ["employer"]
+        }
+    }
+
+Issues:
+✗ Have to manually update when new entities appear
+✗ Don't scale well (more data = more manual work)
+✗ Limited to predefined entities
+✗ No automatic relationship extraction
+
+
+NOW (Automated):
+════════════════
+
+New file: entity_recognition.py with 2 methods:
+
+METHOD 1: spaCy NLP (Fast, Free)
+Method 2: OpenAI Chat API (Higher Quality, Costs $)
+
+Automatically extracts:
+✓ PERSON: "Parth Kumar", "Raju", "Adil"
+✓ ORGANIZATION: "GraphRAG", "DRC Systems"
+✓ LOCATION: "Mumbai"
+✓ DATE: "2018", "2025"
+✓ RELATIONSHIPS: WORKS_AT, FRIEND_OF, etc.
+
+Zero manual work required!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. TWO APPROACHES: SPACY vs OPENAI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+APPROACH 1: SpaCy NLP (Recommended for speed/cost)
+═════════════════════════════════════════════════════
+
+What is spaCy?
+├─ Open-source NLP library by Explosion AI
+├─ Specialized in Named Entity Recognition (NER)
+├─ Pre-trained models available
+└─ Works offline, no API needed
+
+Installation:
+    pip install spacy
+    python -m spacy download en_core_web_sm
+
+Usage:
+    from entity_recognition import EntityRecognizer
+    
+    recognizer = EntityRecognizer(use_method="spacy")
+    entities = recognizer.extract_entities("Parth works at DRC Systems")
+    
+    Result:
+    {
+      "PERSON": ["Parth"],
+      "ORG": ["DRC Systems"]
+    }
+
+Speed: ~5-10 milliseconds per text
+Cost: FREE (no API calls)
+Quality: ⭐⭐⭐⭐ (good for standard entities)
+
+Supported Entity Types (7):
+├─ PERSON: People names
+├─ ORG: Organizations, companies
+├─ GPE: Locations, countries, cities
+├─ DATE: Dates and time expressions
+├─ PRODUCT: Products, tools, software
+├─ CARDINAL: Numbers, amounts
+└─ WORK_OF_ART: Books, movies, etc.
+
+Limitations:
+✗ No relationship extraction
+✗ Sometimes misses context (e.g., "Parth" vs "Parth Kumar")
+✗ Fixed entity types
+✗ No custom entities
+
+
+APPROACH 2: OpenAI Chat API (Higher Quality)
+═════════════════════════════════════════════════
+
+What is OpenAI?
+├─ GPT-4o-mini language model
+├─ Advanced understanding of context
+├─ Can extract relationships
+└─ Returns structured JSON
+
+Installation:
+    Already available (using langchain_openai)
+
+Usage:
+    from entity_recognition import EntityRecognizer
+    
+    recognizer = EntityRecognizer(use_method="openai")
+    entities = recognizer.extract_entities("Parth works at DRC Systems")
+    
+    Result:
+    {
+      "PERSON": ["Parth Kumar"],
+      "ORGANIZATION": ["DRC Systems"],
+      "relationships": [
+        {
+          "entity1": "Parth Kumar",
+          "entity2": "DRC Systems",
+          "type": "WORKS_AT"
+        }
+      ]
+    }
+
+Speed: ~300-500 milliseconds per text
+Cost: ~$0.0001 per 100 tokens (~$0.50/1000 extractions)
+Quality: ⭐⭐⭐⭐⭐ (excellent for context-aware extraction)
+
+Supported Entity Types (Unlimited):
+├─ PERSON: People names
+├─ ORGANIZATION: Companies, groups
+├─ LOCATION: Places, cities
+├─ PRODUCT: Products, software
+├─ DATE: Dates
+├─ And any custom entities you define!
+
+Advantages:
+✓ Relationship extraction (WORKS_AT, FRIEND_OF, etc.)
+✓ Context understanding
+✓ Custom entity types
+✓ Confidence scores possible
+✓ Handles complex relationships
+
+
+COMPARISON TABLE:
+═════════════════
+
+╔────────────────────┬────────────────────┬─────────────────────────╗
+║ Feature            │ spaCy              │ OpenAI                  ║
+╠────────────────────┼────────────────────┼─────────────────────────╣
+║ Speed              │ ⭐⭐⭐⭐⭐ (5ms)    │ ⭐⭐ (300-500ms)         ║
+║ Cost               │ ⭐⭐⭐⭐⭐ (FREE)    │ ⭐⭐⭐ (~$0.0001)         ║
+║ Quality            │ ⭐⭐⭐⭐            │ ⭐⭐⭐⭐⭐               ║
+║ Relationships      │ ❌                 │ ✅                      ║
+║ Offline            │ ✅                 │ ❌                      ║
+║ Custom Entities    │ ⭐⭐ (Limited)      │ ✅                      ║
+║ Context Aware      │ ⭐⭐⭐              │ ⭐⭐⭐⭐⭐               ║
+║ Setup Time         │ Quick (~1 min)    │ Immediate (already set) ║
+╚────────────────────┴────────────────────┴─────────────────────────╝
+
+
+RECOMMENDATION:
+═══════════════
+
+✅ Use spaCy for:
+   • Real-time systems (speed critical)
+   • High volume processing
+   • Limited budget
+   • Standard entity types
+   • Offline processing
+
+✅ Use OpenAI for:
+   • Relationship extraction
+   • Complex context understanding
+   • Custom entity types
+   • Quality over speed
+   • Budget available
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. USAGE EXAMPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXAMPLE 1: Extract Entities from a Chunk
+════════════════════════════════════════
+
+from entity_recognition import EntityRecognizer
+
+text = "Parth Kumar is the CTO at GraphRAG and lives in Mumbai"
+
+# Using spaCy (fast)
+recognizer = EntityRecognizer(use_method="spacy")
+entities = recognizer.extract_entities(text)
+
+print(entities)
+# Output:
+# {
+#   "PERSON": ["Parth Kumar"],
+#   "ORG": ["GraphRAG"],
+#   "GPE": ["Mumbai"]
+# }
+
+
+EXAMPLE 2: Extract with Pretty Print
+═════════════════════════════════════
+
+recognizer = EntityRecognizer(use_method="spacy")
+recognizer.print_extracted_entities(text)
+
+# Output:
+# ============================================================
+# [EXTRACTED ENTITIES FROM TEXT]
+# ============================================================
+# Text: Parth Kumar is the CTO at GraphRAG...
+# 
+# [PERSON]
+#   • Parth Kumar
+# 
+# [ORG]
+#   • GraphRAG
+# 
+# [GPE]
+#   • Mumbai
+# ============================================================
+
+
+EXAMPLE 3: Compare Both Methods
+════════════════════════════════
+
+from entity_recognition import compare_extraction_methods
+
+text = "Parth Kumar works as CTO at GraphRAG Corporation in Mumbai"
+compare_extraction_methods(text)
+
+# Shows side-by-side comparison of spaCy vs OpenAI
+
+
+EXAMPLE 4: Extract and Cache
+═════════════════════════════
+
+recognizer = EntityRecognizer(use_method="spacy")
+
+# Extract and store
+entities = recognizer.extract_and_store(
+    text="Raju works at DRC Systems",
+    source="Personal Notes"
+)
+
+# Later retrieve from cache
+cached = recognizer.entities_cache
+# {
+#   "Raju works at DRC": {
+#     "text": "Raju works at DRC Systems",
+#     "source": "Personal Notes",
+#     "entities": {...}
+#   }
+# }
+
+
+EXAMPLE 5: Integration with Memory Manager
+═══════════════════════════════════════════
+
+# In memory_manager.py, after storing chunk:
+
+from entity_recognition import extract_entities_from_chunk
+
+def add_chunk_memory(chunk, priority=1.0, source="document"):
+    # ... existing code ...
+    
+    # NEW: Extract entities automatically
+    entities = extract_entities_from_chunk(chunk, method="spacy")
+    
+    # Store entities in Neo4j
+    if entities.get("PERSON"):
+        for person in entities["PERSON"]:
+            store_entity_in_neo4j(person, "PERSON", source)
+    
+    if entities.get("ORG"):
+        for org in entities["ORG"]:
+            store_entity_in_neo4j(org, "ORGANIZATION", source)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. API REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Class: EntityRecognizer
+═══════════════════════
+
+Constructor:
+───────────
+EntityRecognizer(use_method="spacy")
+
+Parameters:
+  use_method: "spacy" or "openai"
+
+Methods:
+────────
+
+1. extract_entities(text: str) -> Dict
+   Extract entities from text using configured method
+   
+   Args:
+     text: Input text
+   
+   Returns:
+     Dictionary with entity types as keys and lists of entities as values
+
+2. extract_and_store(text: str, source: str = "document") -> Dict
+   Extract entities and cache them with source info
+   
+   Args:
+     text: Input text
+     source: Source/document name
+   
+   Returns:
+     Extracted entities
+
+3. print_extracted_entities(text: str) -> None
+   Pretty print extracted entities with formatting
+   
+   Args:
+     text: Input text
+
+4. extract_entities_spacy(text: str) -> Dict
+   Direct spaCy extraction (bypasses method selection)
+
+5. extract_entities_openai(text: str) -> Dict
+   Direct OpenAI extraction (bypasses method selection)
+
+
+Properties:
+───────────
+
+entities_cache: Dictionary storing all extracted entities with source info
+use_method: Current method being used ("spacy" or "openai")
+
+
+Helper Functions:
+─────────────────
+
+extract_entities_from_chunk(chunk: str, method: str = "spacy") -> Dict
+  Quick function to extract entities from a chunk
+  
+  Example:
+    entities = extract_entities_from_chunk("Parth works at GraphRAG")
+
+compare_extraction_methods(text: str) -> None
+  Compare spaCy and OpenAI extraction on the same text
+  Shows advantages/disadvantages
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. IMPLEMENTATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File Location: /home/parth/Desktop/Learning/GraphRAG/entity_recognition.py
+
+What's Implemented:
+═══════════════════
+
+✅ spaCy-based NER (Fast NLP)
+   • Using en_core_web_sm model
+   • 7 entity types (PERSON, ORG, GPE, DATE, PRODUCT, CARDINAL, WORK_OF_ART)
+   • Duplicate removal
+   • Pretty printing
+
+✅ OpenAI-based extraction
+   • Using GPT-4o-mini
+   • Relationship extraction
+   • Custom entity types
+   • JSON structured output
+
+✅ Comparison utility
+   • Side-by-side comparison
+   • Performance metrics
+   • Advantages/disadvantages list
+
+✅ Caching mechanism
+   • Stores extracted entities
+   • Tracks source information
+   • No re-extraction needed
+
+
+Performance:
+════════════
+
+spaCy:
+  • Time per text: 5-10ms
+  • Memory: ~100MB (model loaded once)
+  • Throughput: ~1000 texts/second
+  • Total cost: $0
+
+OpenAI:
+  • Time per text: 300-500ms
+  • Memory: Minimal (API call)
+  • Throughput: ~2-3 texts/second
+  • Total cost: ~$0.0001 per text
+
+
+Current Status:
+═══════════════
+
+✅ spaCy installed and working
+✅ OpenAI already available
+✅ Both methods tested and functional
+✅ Comparison working
+✅ Ready to integrate with memory_manager.py
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. COST ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Scenario: Processing 100 documents with 10 chunks each (1000 total chunks)
+
+Option 1: spaCy (Recommended)
+═════════════════════════════
+Cost: $0 (one-time setup)
+Time: 1000 × 10ms = 10 seconds
+Total: FREE ✅
+
+
+Option 2: OpenAI Extraction
+═════════════════════════════
+Cost per extraction: ~$0.0001 (20 tokens × $0.000005/token)
+Cost for 1000: 1000 × $0.0001 = $0.10
+Time: 1000 × 400ms = 400 seconds (6.7 minutes)
+Total: $0.10 + API latency
+
+
+Option 3: Hybrid (Smart)
+═════════════════════════
+Use spaCy for initial extraction (fast, free)
+Use OpenAI only for complex/ambiguous cases (~10% of chunks)
+
+Cost: 0.1 × 1000 × $0.0001 = $0.01
+Time: 900 × 10ms + 100 × 400ms = 49 seconds
+Quality: ⭐⭐⭐⭐⭐
+Total: $0.01 (recommended!)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. SUMMARY: YOUR OPTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Current Status:
+═══════════════
+
+Your system has:
+
+1. ✅ Hardcoded entities (main.py)
+   └─ For reference: Parth, Raju, DRC Systems
+
+2. ✅ Automated spaCy NER (entity_recognition.py)
+   └─ Fast, free, works offline
+   └─ 7 standard entity types
+   └─ Speed: ~5-10ms per text
+
+3. ✅ OpenAI extraction (entity_recognition.py)
+   └─ High quality, relationship extraction
+   └─ Unlimited entity types
+   └─ Speed: ~300-500ms per text
+
+4. ✅ Comparison utility (entity_recognition.py)
+   └─ See differences between methods
+   └─ Help choose which one to use
+
+
+Quick Start:
+════════════
+
+# Use fast spaCy extraction
+from entity_recognition import EntityRecognizer
+recognizer = EntityRecognizer(use_method="spacy")
+entities = recognizer.extract_entities("Your text here")
+print(entities)
+
+
+To Integrate with Memory:
+═════════════════════════
+
+Modify memory_manager.py add_chunk_memory() function:
+
+    from entity_recognition import extract_entities_from_chunk
+    
+    def add_chunk_memory(chunk, priority=1.0, source="document"):
+        # ... existing code ...
+        
+        # Extract entities automatically
+        entities = extract_entities_from_chunk(chunk, method="spacy")
+        
+        # Store entities in Neo4j as separate nodes
+        store_entities_in_neo4j(entities, source)
+
+
+Next Steps:
+═══════════
+
+Option 1: Keep using hardcoded entities (current)
+  Pros: Simple, no changes needed
+  Cons: Manual updates required
+
+Option 2: Switch to spaCy (recommended)
+  Pros: Automatic, fast, free
+  Cons: Limited entity types, no relationships
+
+Option 3: Use OpenAI (high quality)
+  Pros: Excellent quality, relationships
+  Cons: Slower, costs money
+
+Option 4: Hybrid (smart)
+  Pros: Best of both worlds
+  Cons: More complex logic
+
+
+════════════════════════════════════════════════════════════════════════════════

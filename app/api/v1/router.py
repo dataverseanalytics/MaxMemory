@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, profile
+from app.api.v1.endpoints import auth, profile, memory, project, conversation, credits
 
 api_router = APIRouter()
 
@@ -15,4 +15,32 @@ api_router.include_router(
     profile.router,
     prefix="/profile",
     tags=["User Profile"]
+)
+
+# Include memory routes
+api_router.include_router(
+    memory.router,
+    prefix="/memory",
+    tags=["Memory"]
+)
+
+# Include project routes
+api_router.include_router(
+    project.router,
+    prefix="/projects",
+    tags=["Projects"]
+)
+
+# Include conversation routes
+api_router.include_router(
+    conversation.router,
+    prefix="/conversations",
+    tags=["Conversations"]
+)
+
+# Include credit routes
+api_router.include_router(
+    credits.router,
+    prefix="/credits",
+    tags=["Credits"]
 )

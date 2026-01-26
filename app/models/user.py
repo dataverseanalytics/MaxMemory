@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -30,6 +30,7 @@ class User(Base):
     
     # Account status
     is_active = Column(Boolean, default=True)
+    credits_balance = Column(Float, default=100.0) # Start with 100 free credits
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

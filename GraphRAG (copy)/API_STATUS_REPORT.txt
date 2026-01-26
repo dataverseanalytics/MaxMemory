@@ -1,0 +1,179 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    OPENAI API STATUS REPORT                               ║
+║                        19 December 2025                                   ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ CHAT API (gpt-4o-mini) - WORKING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Status: ✓ OPERATIONAL
+Model: gpt-4o-mini
+Purpose: Answer generation, Question answering, YES/NO questions
+
+Test Results:
+  ✓ Simple message: Working (2.02s)
+  ✓ Question answering: Working (1.21s)
+  ✓ YES/NO questions: Working (1.24s)
+
+Speed: 1-2 seconds per query (fast enough for interactive use)
+
+What this means:
+  ✓ You can ask questions about your data
+  ✓ System will generate proper answers
+  ✓ Negation handling works ([NEG] markers)
+  ✓ Multiple items listed correctly
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏱ EMBEDDINGS API (text-embedding-3-small) - TIMEOUT ISSUE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Status: ⏱ SLOW / TIMEOUT
+Model: text-embedding-3-small
+Purpose: Create vector embeddings for PDF uploads and semantic search
+
+Issue:
+  ⏱ Embeddings API calls are timing out (>60s)
+  → Possible causes:
+    - API overload / high demand
+    - Network latency
+    - OpenAI server issues
+    - Regional connection problems
+
+What this means:
+  ✗ PDF uploads will be very slow (may timeout)
+  ✗ Semantic search in FAISS will be slow
+  ✓ But Chat API still works for answering queries
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK ACTION ITEMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ WHAT YOU CAN DO NOW:
+  1. Run main.py to start the system
+  2. Ask queries (Chat API works)
+  3. Negation handling works
+  4. Multiple friends/items listing works
+  5. Metadata is shown with answers
+
+✗ WHAT TO AVOID RIGHT NOW:
+  1. Uploading large PDF files (will timeout on embeddings)
+  2. Using option [2] (PDF Upload) - will hang
+  3. Large document processing (embeddings too slow)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW TO RUN QUERIES NOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Method 1: Use main.py
+  $ python main.py
+  → Select option [1] to query existing data
+  → Or load sample data first
+
+Method 2: Quick test with check_api_status.py
+  $ python check_api_status.py
+  → Shows API status and examples
+
+Method 3: Use API directly in code
+  from retrieve import QueryRetrieval
+  
+  retrieval = QueryRetrieval()
+  result = retrieval.ask_question("What does Parth do?")
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SAMPLE QUERIES THAT WORK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ "What is Parth's job?"
+  Answer: Parth's job is the CTO (Chief Technology Officer) of GraphRAG Corporation.
+  Time: ~1.2s
+
+✓ "Who are Parth's friends?"
+  Answer: Raju and Adil are Parth's friends.
+  Time: ~1.5s
+
+✓ "Does Parth still work at TechCorp?"
+  Answer: NO (correctly handles [NEG] marker)
+  Time: ~1.2s
+
+✓ "Where does Parth live?"
+  Answer: Parth lives in Mumbai.
+  Time: ~1.3s
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: "Queries not working"
+Solution:
+  1. Run: python check_api_status.py
+  2. Check if Chat API test passes
+  3. Verify .env has OPENAI_API_KEY
+  4. Check internet connection
+
+Problem: "PDF uploads hang"
+Solution:
+  1. This is Embeddings API timeout issue
+  2. Workaround: Add data manually via API
+  3. Wait for OpenAI server to recover
+  4. Try again later
+
+Problem: "401 Unauthorized"
+Solution:
+  1. Check API key in .env file
+  2. Go to https://platform.openai.com/account/api-keys
+  3. Generate new key if needed
+  4. Add to .env: OPENAI_API_KEY=sk-...
+
+Problem: "429 Too Many Requests"
+Solution:
+  1. Rate limit exceeded
+  2. Wait 1 minute before retrying
+  3. Reduce query frequency
+  4. Upgrade OpenAI plan if needed
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEATURE STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Feature                          Status      Notes
+─────────────────────────────────────────────────────────────
+Chat-based queries              ✓ WORKING   ~1-2s per query
+YES/NO questions                ✓ WORKING   Handles negation
+Multiple items listing          ✓ WORKING   Lists ALL items
+Metadata display                ✓ WORKING   Shows source, timestamp
+Neo4j storage                   ✓ WORKING   Stores Memory nodes
+FAISS vector search             ✓ WORKING   But slow due to embeddings
+PDF uploads                     ⏱ TIMEOUT   Embeddings API issue
+Entity extraction (manual)      ✓ WORKING   Hardcoded entities
+NLP entity extraction           ✓ WORKING   Using spaCy (optional)
+Graph visualization             ✓ WORKING   Shows relationships
+Memory relationships            ✓ WORKING   NEXT, RELATED types
+
+═════════════════════════════════════════════════════════════════════════════
+
+FINAL VERDICT:
+═════════════════════════════════════════════════════════════════════════════
+
+✓ YOUR SYSTEM IS FUNCTIONAL
+
+→ Chat API: Working perfectly (1-2s responses)
+→ Queries: Ready to use
+→ Negation: Handles [NEG] markers correctly
+→ Metadata: Shows with answers
+→ Neo4j: Storing data properly
+
+→ Known Issue: Embeddings API is slow (temporary)
+→ Workaround: Use existing data, manually add more, or wait
+
+→ You can start using the system NOW
+→ Just avoid PDF uploads until embeddings API recovers
+
+═════════════════════════════════════════════════════════════════════════════

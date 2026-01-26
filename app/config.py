@@ -37,15 +37,30 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000"
+
+    # Memory System
+    OPENAI_API_KEY: str
+    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_USERNAME: str = "neo4j"
+    NEO4J_PASSWORD: str = "password"
+    AURA_INSTANCEID: str = ""
+    AURA_INSTANCENAME: str = ""
+    UPLOAD_DIR: str = "uploads"
+    
+    # Model Configuration
+    DEFAULT_MODEL: str = "gpt-4o-mini"
     
     @property
     def cors_origins_list(self) -> List[str]:
         """Convert comma-separated CORS origins to list"""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore",
+        "protected_namespaces": ("model_", ) 
+    }
 
 
 # Global settings instance

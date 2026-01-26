@@ -25,3 +25,13 @@ jinja2
 
 # Utilities
 python-dateutil
+
+# Memory System & RAG
+langchain
+langchain-openai
+langchain-community
+neo4j
+faiss-cpu
+tiktoken
+PyPDF2
+python-docx

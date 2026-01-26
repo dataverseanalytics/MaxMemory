@@ -1,0 +1,786 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                      OPENAI API USAGE IN GRAPHRAG                          ║
+║                                                                            ║
+║                Where and How OpenAI APIs are Used                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. OVERVIEW - TWO MAIN USES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your GraphRAG system uses OpenAI API in TWO main places:
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. EMBEDDINGS API (memory_manager.py)                           │
+│    └─ For: Converting text to semantic vectors (1536-dim)       │
+│    └─ Model: text-embedding-3-small                            │
+│    └─ Purpose: Store in FAISS for similarity search            │
+├─────────────────────────────────────────────────────────────────┤
+│ 2. CHAT API (retrieve.py)                                       │
+│    └─ For: Generating answers from context                      │
+│    └─ Model: gpt-4o-mini                                        │
+│    └─ Purpose: Answer user questions with reasoning             │
+└─────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. EMBEDDINGS API - DETAILED USAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILE: memory_manager.py
+LINES: 1-25 (Initialization), 140-160 (Usage), 340-360 (Batch usage)
+
+═════════════════════════════════════════════════════════════════════════════
+
+INITIALIZATION (Lines 1-25):
+──────────────────────────────
+
+from langchain_openai import OpenAIEmbeddings
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Create embeddings instance
+api_key = os.getenv("OPENAI_API_KEY")
+embeddings = OpenAIEmbeddings(api_key=api_key)
+
+What happens:
+├─ Import OpenAIEmbeddings from LangChain
+├─ Read OPENAI_API_KEY from environment (.env file)
+├─ Create global embeddings object
+└─ Ready to convert text to vectors
+
+═════════════════════════════════════════════════════════════════════════════
+
+USE CASE 1: Adding Single Document (Lines 140-160)
+──────────────────────────────────────────────────
+
+Location: Function add_chunk_memory(chunk, priority, source)
+
+def add_chunk_memory(chunk, priority=1.0, source="general"):
+    """Add a chunk to memory with embedding"""
+    global vector_store
+    
+    try:
+        # FAISS converts chunk to vector using OpenAI API
+        if vector_store is None:
+            vector_store = FAISS.from_texts(
+                [chunk],                    # Text to embed
+                embedding=embeddings        # Uses OpenAI API here
+            )
+        else:
+            vector_store.add_texts(
+                [chunk],
+                metadatas=[{"source": source, "timestamp": datetime.now().isoformat()}]
+            )
+        save_vector_store()
+        
+    except Exception as e:
+        print(f"[ERROR] {e}")
+
+What happens:
+├─ Input: chunk = "Parth Kumar is the CTO"
+├─ OpenAI API Call: text-embedding-3-small model
+├─ Output: Vector [0.123, 0.456, ..., 1536 dimensions]
+├─ Storage: Saved in FAISS index
+└─ Cost: ~$0.02 per 1M tokens
+
+Example Flow:
+    Chunk: "Parth is a Software Engineer at DRC Systems"
+         ↓
+    OpenAI Embedding API
+         ↓
+    Vector: [0.234, -0.567, 0.890, ..., <1536 numbers>]
+         ↓
+    FAISS Storage (faiss_index/index.bin)
+
+═════════════════════════════════════════════════════════════════════════════
+
+USE CASE 2: Batch Adding Documents (Lines 340-360)
+───────────────────────────────────────────────────
+
+Location: Function add_memory_to_store(texts, metadatas)
+
+def add_memory_to_store(texts, metadatas=None):
+    """Add batch of memories to store"""
+    global vector_store
+    
+    if not texts:
+        return
+    
+    try:
+        # OpenAI API converts ALL texts to vectors at once
+        if vector_store is None:
+            vector_store = FAISS.from_texts(
+                texts,                      # List of texts
+                embedding=embeddings        # OpenAI API called for each
+            )
+        else:
+            vector_store.add_texts(texts, metadatas=metadatas)
+        
+        save_vector_store()
+        print(f"[ADD] {len(texts)} memories added")
+        
+    except Exception as e:
+        print(f"[ERROR] {e}")
+
+What happens:
+├─ Input: texts = ["Chunk 1", "Chunk 2", "Chunk 3", ...]
+├─ OpenAI API Calls: One per chunk (batched)
+├─ Output: Vectors for all chunks
+├─ Storage: All stored in FAISS
+└─ Cost: Proportional to total tokens
+
+Example:
+    Texts: ["Parth works at DRC", "Raju is his friend", "Adil is..."]
+         ↓
+    3x OpenAI Embedding API calls (in parallel)
+         ↓
+    3 Vectors created
+         ↓
+    All stored in FAISS
+
+═════════════════════════════════════════════════════════════════════════════
+
+USE CASE 3: Query Embedding (Memory_manager.py, Line 165)
+─────────────────────────────────────────────────────────
+
+Location: Function retrieve_relevant_memories(query)
+
+def retrieve_relevant_memories(query, k=15):
+    """Retrieve relevant memories for a query"""
+    
+    if vector_store is None:
+        return []
+    
+    try:
+        # Convert query to vector using OpenAI API
+        results = vector_store.similarity_search(
+            query,                  # User's question
+            k=k                     # Return top 15
+        )
+        
+        # OpenAI Embedding API called here for query
+        # Returns documents similar to query vector
+
+What happens:
+├─ Input: query = "Who is the CTO?"
+├─ OpenAI API Call: Convert question to vector
+├─ Vector: [0.111, 0.222, ..., 1536 dims]
+├─ FAISS Search: Find 15 closest chunk vectors
+├─ Output: Top 15 matching chunks
+└─ Cost: ~$0.02 per 1M tokens
+
+Example:
+    Q: "Who is the CTO?"
+         ↓
+    OpenAI Embedding: [0.111, 0.222, ...]
+         ↓
+    FAISS Similarity Search (fast, local)
+         ↓
+    Returns: Top 15 chunks mentioning "CTO"
+
+═════════════════════════════════════════════════════════════════════════════
+
+EMBEDDINGS API SUMMARY
+══════════════════════
+
+Model:              text-embedding-3-small
+Input:              Text (any length)
+Output:             1536-dimensional vector
+Cost:               $0.02 per 1M tokens (very cheap)
+Speed:              ~50-100ms per request
+Usage in GraphRAG:  3 main uses:
+                    ├─ add_chunk_memory() - Add one chunk
+                    ├─ add_memory_to_store() - Add batch
+                    └─ retrieve_relevant_memories() - Query search
+
+Total Calls Per Upload:
+    200KB PDF → 50 chunks → ~50 OpenAI API calls
+    
+Total Calls Per Query:
+    1 query + 15 chunk re-embeddings → ~2 OpenAI API calls
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. CHAT API - DETAILED USAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILE: retrieve.py
+LINES: 1-15 (Initialization), 30-90 (Usage)
+
+═════════════════════════════════════════════════════════════════════════════
+
+INITIALIZATION (Lines 1-15):
+───────────────────────────
+
+from langchain_openai import ChatOpenAI
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize LLM
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+
+What happens:
+├─ Import ChatOpenAI from LangChain
+├─ Create LLM instance for gpt-4o-mini
+├─ Ready to generate answers
+└─ Authentication set via environment variable
+
+═════════════════════════════════════════════════════════════════════════════
+
+USE CASE: Generate Answer (Lines 30-90)
+───────────────────────────────────────
+
+Location: Function generate_answer(query, memories)
+
+def generate_answer(self, query, memories):
+    """Generate an answer using LLM"""
+    
+    # Format memories with context
+    relevant_context = ""
+    for idx, m in enumerate(memories, 1):
+        relevant_context += f"\n[Memory {idx}]: {extract_text(m)}"
+    
+    # Create explicit prompt with 6 rules
+    prompt = f"""You are a helpful assistant answering questions based on personal memories.
+    
+CRITICAL INSTRUCTIONS:
+
+1. **YES/NO QUESTIONS**: Answer directly with YES or NO first
+2. **NEGATION HANDLING**: Pay attention to [NEG] markers and NOT keywords
+3. **MULTIPLE ITEMS**: List ALL items mentioned, not just one
+4. **PERSPECTIVE CLARITY**: I = Parth
+5. **FACTS ONLY**: Don't infer or assume
+6. **MEMORY CITATION**: Cite which memory supports answer
+
+RELEVANT MEMORIES:
+{relevant_context}
+
+User Question: {query}
+"""
+
+    # OpenAI Chat API called here
+    response = llm.invoke(prompt)
+    answer = response.content
+    
+    return answer
+
+What happens:
+├─ Input: query + 15 relevant memories
+├─ Format: Detailed prompt with 6 explicit rules
+├─ OpenAI Chat API Call: gpt-4o-mini model
+├─ Output: Reasoned answer with citations
+└─ Cost: ~$0.15 per 1M input tokens, $0.60 per 1M output tokens
+
+Example:
+    Prompt + Context (15 chunks + explicit rules)
+         ↓
+    OpenAI gpt-4o-mini Chat API
+         ↓
+    Analysis of memories
+         ↓
+    Generate answer following 6 rules
+         ↓
+    Output: "Yes, Parth Kumar is the CTO. Memory 1 mentions..."
+
+═════════════════════════════════════════════════════════════════════════════
+
+CHAT API SUMMARY
+════════════════
+
+Model:              gpt-4o-mini (fast, cheap version of GPT-4)
+Input:              Question + 15 memory chunks + system prompt
+Output:             Natural language answer with citations
+Cost:               $0.15 per 1M input tokens
+                    $0.60 per 1M output tokens
+Speed:              1-2 seconds per query
+Usage in GraphRAG:  1 main use:
+                    └─ generate_answer() - Answer questions
+
+Tokens per Query:
+    15 memories (avg 200 tokens each) = 3000 tokens input
+    Answer (avg 100 tokens) = 100 tokens output
+    Total: 3100 tokens per query
+    Cost: ~$0.00047 per query (half a cent)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. OPENAI API KEY SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHERE API KEY COMES FROM:
+═════════════════════════
+
+1. Environment Variable: OPENAI_API_KEY
+   ├─ Loaded from .env file
+   ├─ Keep it secure (don't commit to Git)
+   └─ Create account: https://platform.openai.com
+
+2. In memory_manager.py (Line 22):
+   api_key = os.getenv("OPENAI_API_KEY")
+
+3. In retrieve.py (Line 15):
+   api_key=os.getenv("OPENAI_API_KEY")
+
+4. .env file should contain:
+   OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
+
+HOW TO GET YOUR KEY:
+════════════════════
+1. Visit: https://platform.openai.com/account/api-keys
+2. Create new secret key
+3. Copy it
+4. Create .env file in project root:
+   OPENAI_API_KEY=sk-proj-...
+5. Save (don't share!)
+
+VERIFY IT WORKS:
+════════════════
+python -c "
+from dotenv import load_dotenv
+import os
+load_dotenv()
+key = os.getenv('OPENAI_API_KEY')
+print('✅ API Key loaded' if key else '❌ API Key not found')
+print('Key starts with:', key[:10] + '...' if key else 'N/A')
+"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. CODE FLOW - WHERE OPENAI IS CALLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+UPLOAD FLOW:
+════════════
+
+User runs: python main.py → [2] Upload PDF
+
+[ingest.py]
+    ↓
+ingestion.add_document(text)
+    ↓
+[memory_manager.py]
+    ↓
+split_document(text) ← No API call
+    ↓
+for chunk in chunks:
+    add_chunk_memory(chunk)
+        ↓
+        FAISS.from_texts(chunk, embedding=embeddings)
+            ↓
+            🔴 OPENAI API CALL #1 (Embedding API)
+                Model: text-embedding-3-small
+                Input: chunk text
+                Output: vector [1536 dimensions]
+        ↓
+        Save vector to FAISS
+        ↓
+Save FAISS to disk ← No API call
+
+
+QUERY FLOW:
+═══════════
+
+User runs: python main.py → [3] Ask question
+
+[retrieve.py]
+    ↓
+ask_question(query)
+    ↓
+retrieve_relevant_memories(query)
+    ↓
+vector_store.similarity_search(query, k=15)
+    ↓
+    🔴 OPENAI API CALL #1 (Embedding API)
+        Model: text-embedding-3-small
+        Input: query text
+        Output: vector [1536 dimensions]
+    ↓
+    FAISS local search ← No API call (fast, local)
+    ↓
+    Returns top 15 chunks
+    ↓
+generate_answer(query, memories)
+    ↓
+llm.invoke(prompt_with_memories)
+    ↓
+    🔴 OPENAI API CALL #2 (Chat API)
+        Model: gpt-4o-mini
+        Input: prompt + 15 memories
+        Output: generated answer
+    ↓
+Return answer to user
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. COST ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EMBEDDING API COSTS:
+════════════════════
+
+Model: text-embedding-3-small
+Price: $0.02 per 1M tokens
+
+Per Upload (200KB PDF → 50 chunks):
+├─ 50 chunks × 100 tokens avg = 5000 tokens
+├─ Cost: $0.02 × (5000/1M) = $0.0001
+└─ Result: Less than 0.01 cents per document
+
+Per Query (1 query + 15 chunks):
+├─ 1 query (20 tokens) + 15 chunks (3000 tokens) = 3020 tokens
+├─ Cost: $0.02 × (3020/1M) = $0.00006
+└─ Result: Less than 0.01 cents per query
+
+
+CHAT API COSTS:
+═══════════════
+
+Model: gpt-4o-mini
+Input:  $0.15 per 1M tokens
+Output: $0.60 per 1M tokens
+
+Per Query:
+├─ Input tokens: 3000 (15 memories + prompt)
+├─ Output tokens: 150 (answer)
+├─ Input cost: $0.15 × (3000/1M) = $0.00045
+├─ Output cost: $0.60 × (150/1M) = $0.00009
+├─ Total: $0.00054
+└─ Result: About 0.05 cents per query
+
+
+TYPICAL MONTHLY COSTS:
+══════════════════════
+
+Scenario: 100 documents + 1000 queries
+
+Upload phase (100 docs):
+├─ 100 × $0.0001 = $0.01
+└─ Cost: Less than 1 cent
+
+Query phase (1000 queries):
+├─ Embedding: 1000 × $0.00006 = $0.06
+├─ Chat: 1000 × $0.00045 = $0.45
+├─ Total: $0.51
+└─ Cost: About 50 cents
+
+Total Monthly: ~$0.52 (half a cent)
+Very Cheap! ✅
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. API CALLS BREAKDOWN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT EACH API DOES:
+════════════════════
+
+1. EMBEDDING API (text-embedding-3-small)
+   ├─ Input: Any text (sentence, paragraph, document)
+   ├─ Output: Vector with 1536 numbers
+   ├─ Purpose: Convert text to semantic representation
+   ├─ Used for: FAISS storage & similarity search
+   ├─ Speed: Fast (50-100ms)
+   ├─ Cost: Very cheap ($0.02/1M tokens)
+   └─ Example:
+       Input: "Parth is the CTO"
+       Output: [0.234, -0.567, 0.890, ..., <1536 numbers>]
+
+2. CHAT API (gpt-4o-mini)
+   ├─ Input: Prompt with instructions + context
+   ├─ Output: Natural language response
+   ├─ Purpose: Reason about memories and answer questions
+   ├─ Used for: Generate answers with citations
+   ├─ Speed: Fast (1-2 seconds)
+   ├─ Cost: Cheap ($0.15/$0.60 per 1M tokens)
+   └─ Example:
+       Input: "Based on memories, who is the CTO?"
+       Output: "Parth Kumar is the CTO (Memory 1)"
+
+
+HOW THEY WORK TOGETHER:
+═══════════════════════
+
+Step 1: Upload PDF
+    PDF → Extract text → Create chunks
+    ↓
+    For each chunk:
+    └─ OpenAI Embedding API → Convert to vector
+    
+    Stored in FAISS (no API needed for retrieval, all local)
+
+Step 2: Ask Question
+    Question → OpenAI Embedding API → Convert to vector
+    ↓
+    FAISS local search (NO API) → Find 15 similar chunks
+    ↓
+    Chunks + Question → OpenAI Chat API → Generate answer
+    
+    Return answer with citations
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. LIBRARIES USED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LANGCHAIN (Wrapper around OpenAI):
+════════════════════════════════════
+
+from langchain_openai import OpenAIEmbeddings
+└─ Easy wrapper for OpenAI embeddings
+└─ Automatically handles API calls
+└─ Integrates with FAISS
+
+from langchain_openai import ChatOpenAI
+└─ Easy wrapper for OpenAI chat
+└─ Simplified API for answering questions
+└─ Built-in prompt handling
+
+from langchain_community.vectorstores import FAISS
+└─ Vector database integration
+└─ Stores OpenAI embeddings
+└─ Fast similarity search (local, no API)
+
+
+WHY NOT USE OPENAI CLIENT DIRECTLY?
+════════════════════════════════════
+
+You COULD do:
+from openai import OpenAI
+client = OpenAI(api_key="...")
+response = client.embeddings.create(model="text-embedding-3-small", input=text)
+
+But LangChain is better because:
+├─ Simpler API (less code)
+├─ Built-in integration with FAISS
+├─ Better error handling
+├─ Easier to swap models later
+└─ Standard in RAG systems
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. ACTUAL CODE EXAMPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXAMPLE 1: Add Document with OpenAI Embedding
+═════════════════════════════════════════════
+
+# File: memory_manager.py, Line 140
+
+def add_chunk_memory(chunk, priority=1.0, source="general"):
+    global vector_store
+    try:
+        if vector_store is None:
+            # 🔴 OpenAI Embedding API called here
+            vector_store = FAISS.from_texts(
+                [chunk],                    # Text input
+                embedding=embeddings        # Uses OpenAI
+            )
+        else:
+            # Add to existing FAISS store
+            vector_store.add_texts([chunk])
+        
+        save_vector_store()
+        print(f"[ADD] Chunk stored: '{chunk[:50]}...' with priority {priority}")
+    except Exception as e:
+        print(f"[ERROR] {e}")
+
+How to trace the OpenAI call:
+├─ Input: chunk = "Parth Kumar works at DRC Systems"
+├─ FAISS.from_texts() is called
+├─ LangChain calls: embeddings.embed_documents([chunk])
+├─ Which calls: OpenAI API (text-embedding-3-small)
+├─ Returns: Vector [0.123, -0.456, ..., 1536 dimensions]
+├─ FAISS stores: Vector + metadata
+└─ Cost: $0.02 × (token_count/1M)
+
+
+EXAMPLE 2: Search with OpenAI Embedding
+════════════════════════════════════════
+
+# File: memory_manager.py, Line 165
+
+def retrieve_relevant_memories(query, k=15):
+    if vector_store is None:
+        return []
+    
+    try:
+        # 🔴 OpenAI Embedding API called here
+        results = vector_store.similarity_search(query, k=k)
+        
+        # Returns top 15 chunks most similar to query
+        return [r.page_content for r in results]
+    except Exception as e:
+        return []
+
+How to trace the OpenAI call:
+├─ Input: query = "Who is the CTO?"
+├─ vector_store.similarity_search(query) is called
+├─ LangChain calls: embeddings.embed_query(query)
+├─ Which calls: OpenAI API (text-embedding-3-small)
+├─ Returns: Query vector [0.111, 0.222, ...]
+├─ FAISS search: Finds 15 closest vectors (LOCAL, no API)
+├─ Returns: Top 15 chunks
+└─ Cost: $0.02 × (query_tokens/1M) - very cheap
+
+
+EXAMPLE 3: Generate Answer with OpenAI Chat
+════════════════════════════════════════════
+
+# File: retrieve.py, Line 75
+
+def generate_answer(self, query, memories):
+    # Format memories
+    relevant_context = ""
+    for idx, m in enumerate(memories, 1):
+        relevant_context += f"\n[Memory {idx}]: {m}"
+    
+    # Create detailed prompt with 6 rules
+    prompt = f"""You are answering based on memories.
+    
+RULES:
+1. YES/NO questions: Answer directly
+2. [NEG] markers indicate negation
+3. List ALL multiple items
+4. I = Parth
+5. Facts only
+6. Cite memory sources
+
+MEMORIES:
+{relevant_context}
+
+Question: {query}"""
+    
+    # 🔴 OpenAI Chat API called here
+    response = llm.invoke(prompt)
+    
+    return response.content
+
+How to trace the OpenAI call:
+├─ Input: prompt with 15 memories + explicit rules
+├─ llm.invoke(prompt) is called
+├─ ChatOpenAI calls: OpenAI API (gpt-4o-mini)
+├─ Returns: Generated answer following rules
+├─ Example output: "Yes, Parth Kumar is the CTO (Memory 1)"
+└─ Cost: Input $0.15/1M + Output $0.60/1M
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+10. DEBUGGING - HOW TO VERIFY API CALLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHECK IF API KEY IS LOADED:
+═══════════════════════════
+
+python -c "
+import os
+from dotenv import load_dotenv
+load_dotenv()
+key = os.getenv('OPENAI_API_KEY')
+if key:
+    print('✅ API Key found')
+    print('First 10 chars:', key[:10] + '...')
+else:
+    print('❌ API Key not found')
+    print('Check .env file exists with OPENAI_API_KEY=...')
+"
+
+
+TEST EMBEDDING API:
+═══════════════════
+
+python -c "
+from langchain_openai import OpenAIEmbeddings
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+embeddings = OpenAIEmbeddings()
+
+# Call API
+vector = embeddings.embed_query('Hello world')
+print('✅ Embedding API works')
+print('Vector length:', len(vector))
+print('First 5 values:', vector[:5])
+"
+
+Expected output:
+    ✅ Embedding API works
+    Vector length: 1536
+    First 5 values: [0.123, -0.456, 0.789, ...]
+
+
+TEST CHAT API:
+══════════════
+
+python -c "
+from langchain_openai import ChatOpenAI
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+llm = ChatOpenAI(model='gpt-4o-mini')
+
+# Call API
+response = llm.invoke('What is 2+2?')
+print('✅ Chat API works')
+print('Response:', response.content)
+"
+
+Expected output:
+    ✅ Chat API works
+    Response: 2 + 2 = 4
+
+
+VIEW API USAGE IN OPENAI DASHBOARD:
+═══════════════════════════════════
+
+1. Go to: https://platform.openai.com/account/usage/overview
+2. View:
+   ├─ Total usage this month
+   ├─ Cost breakdown by model
+   ├─ Requests per model
+   └─ Cost predictions
+
+You should see:
+├─ text-embedding-3-small: ~50+ calls per document upload
+├─ gpt-4o-mini: ~1 call per query
+└─ Total cost: Usually <$1/month
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUMMARY TABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+API              Model                      Where Used              Cost/1M
+─────────────────────────────────────────────────────────────────────────────
+EMBEDDING        text-embedding-3-small     memory_manager.py       $0.02
+CHAT             gpt-4o-mini                retrieve.py             $0.15 in
+                                                                    $0.60 out
+
+Usage per Upload (200KB PDF):
+    ├─ 50 embeddings API calls (~$0.0001)
+    ├─ FAISS storage (local, free)
+    └─ Total: <$0.01
+
+Usage per Query:
+    ├─ 1 embedding API call (~$0.00006)
+    ├─ 1 chat API call (~$0.00045)
+    └─ Total: ~$0.0005 per query
+
+Monthly (100 docs + 1000 queries):
+    ├─ Uploads: $0.01
+    ├─ Queries: $0.51
+    └─ Total: ~$0.52/month (very cheap!)
+
+═════════════════════════════════════════════════════════════════════════════

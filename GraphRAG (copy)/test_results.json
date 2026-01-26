@@ -1,0 +1,704 @@
+{
+  "total_tests": 110,
+  "passed": 57,
+  "failed": 53,
+  "test_categories": {
+    "friendship": {
+      "passed": 3,
+      "failed": 12
+    },
+    "job": {
+      "passed": 12,
+      "failed": 3
+    },
+    "preferences": {
+      "passed": 0,
+      "failed": 15
+    },
+    "raju_info": {
+      "passed": 15,
+      "failed": 0
+    },
+    "typo_handling": {
+      "passed": 5,
+      "failed": 5
+    },
+    "relationships": {
+      "passed": 6,
+      "failed": 4
+    },
+    "yes_no": {
+      "passed": 6,
+      "failed": 4
+    },
+    "complex": {
+      "passed": 8,
+      "failed": 2
+    },
+    "casual": {
+      "passed": 2,
+      "failed": 3
+    },
+    "negation": {
+      "passed": 0,
+      "failed": 5
+    }
+  },
+  "failures": [
+    {
+      "test_num": 1,
+      "category": "friendship",
+      "query": "who is my good friend?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 2,
+      "category": "friendship",
+      "query": "who are my good friends?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "raju"
+    },
+    {
+      "test_num": 4,
+      "category": "friendship",
+      "query": "Is Adil your friend?",
+      "expected": [
+        "adil",
+        "friend"
+      ],
+      "found": [
+        "adil"
+      ],
+      "answer": "adil"
+    },
+    {
+      "test_num": 5,
+      "category": "friendship",
+      "query": "tell me about my friends",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the provided memories, parth's good friend is mr. raju."
+    },
+    {
+      "test_num": 6,
+      "category": "friendship",
+      "query": "who is your best friend?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "raju"
+    },
+    {
+      "test_num": 7,
+      "category": "friendship",
+      "query": "my frends are?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 10,
+      "category": "friendship",
+      "query": "Tell me all my friends",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 11,
+      "category": "friendship",
+      "query": "Who are people I am friends with?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "the people you are friends with are mr. raju. (memory 1)"
+    },
+    {
+      "test_num": 12,
+      "category": "friendship",
+      "query": "List my close friends",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 13,
+      "category": "friendship",
+      "query": "Who do you consider as your friend?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the memories provided, my friends are mr. raju."
+    },
+    {
+      "test_num": 14,
+      "category": "friendship",
+      "query": "Name your friends",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 15,
+      "category": "friendship",
+      "query": "how many friends do you have?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "the friends you have based on the memories provided are mr. raju."
+    },
+    {
+      "test_num": 21,
+      "category": "job",
+      "query": "Do you work at DRC?",
+      "expected": [
+        "drc",
+        "yes"
+      ],
+      "found": [
+        "drc"
+      ],
+      "answer": "based on the memories provided, parth works at drc systems. parth is good friends with mr. raju, who"
+    },
+    {
+      "test_num": 25,
+      "category": "job",
+      "query": "Tell me about your work",
+      "expected": [
+        "software engineer"
+      ],
+      "found": [],
+      "answer": "my friends include mr. raju. "
+    },
+    {
+      "test_num": 29,
+      "category": "job",
+      "query": "Are you employed?",
+      "expected": [
+        "drc",
+        "yes"
+      ],
+      "found": [
+        "drc"
+      ],
+      "answer": "based on the memories provided, you are employed at drc systems as a software engineer. your good fr"
+    },
+    {
+      "test_num": 31,
+      "category": "preferences",
+      "query": "What do you like?",
+      "expected": [
+        "ai",
+        "reading",
+        "python",
+        "coffee",
+        "sunny"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 32,
+      "category": "preferences",
+      "query": "Tell me your likes and dislikes",
+      "expected": [
+        "like",
+        "dislike"
+      ],
+      "found": [],
+      "answer": "friends: mr. raju"
+    },
+    {
+      "test_num": 33,
+      "category": "preferences",
+      "query": "Do you like AI?",
+      "expected": [
+        "ai",
+        "yes"
+      ],
+      "found": [],
+      "answer": "parth's good friend is mr. raju (memory 1)."
+    },
+    {
+      "test_num": 34,
+      "category": "preferences",
+      "query": "What are your hobbies?",
+      "expected": [
+        "reading",
+        "python",
+        "ai"
+      ],
+      "found": [],
+      "answer": "based on the memories provided:\n- parth is good friends with mr. raju\n- raju is now working as a fre"
+    },
+    {
+      "test_num": 35,
+      "category": "preferences",
+      "query": "Do you enjoy reading?",
+      "expected": [
+        "reading",
+        "yes"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friends are mr. raju."
+    },
+    {
+      "test_num": 36,
+      "category": "preferences",
+      "query": "What programming language do you prefer?",
+      "expected": [
+        "python"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, my good friends are mr. raju."
+    },
+    {
+      "test_num": 37,
+      "category": "preferences",
+      "query": "Do you like cats?",
+      "expected": [
+        "cats",
+        "yes"
+      ],
+      "found": [],
+      "answer": "parth's good friend is mr. raju (memory 1)."
+    },
+    {
+      "test_num": 38,
+      "category": "preferences",
+      "query": "What weather do you prefer?",
+      "expected": [
+        "sunny",
+        "weather"
+      ],
+      "found": [
+        "weather"
+      ],
+      "answer": "based on the memories provided, parth's good friend is mr. raju. no specific weather preferences wer"
+    },
+    {
+      "test_num": 39,
+      "category": "preferences",
+      "query": "Do you hate rainy days?",
+      "expected": [
+        "rainy",
+        "hate"
+      ],
+      "found": [],
+      "answer": "parth's good friend is mr. raju (memory 1)."
+    },
+    {
+      "test_num": 40,
+      "category": "preferences",
+      "query": "What do you enjoy?",
+      "expected": [
+        "sunny",
+        "cats",
+        "coffee",
+        "reading"
+      ],
+      "found": [],
+      "answer": "based on the provided memories, parth's good friend is mr. raju."
+    },
+    {
+      "test_num": 41,
+      "category": "preferences",
+      "query": "Tell me your interests",
+      "expected": [
+        "ai",
+        "reading",
+        "python"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friends are mr. raju and adil."
+    },
+    {
+      "test_num": 42,
+      "category": "preferences",
+      "query": "What things do you like?",
+      "expected": [
+        "ai",
+        "reading",
+        "coffee"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 43,
+      "category": "preferences",
+      "query": "Do you like technology?",
+      "expected": [
+        "technology",
+        "ai",
+        "python"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 44,
+      "category": "preferences",
+      "query": "What makes you happy?",
+      "expected": [
+        "reading",
+        "ai",
+        "coffee"
+      ],
+      "found": [],
+      "answer": "parth's good friends are mr. raju. (memory 1)"
+    },
+    {
+      "test_num": 45,
+      "category": "preferences",
+      "query": "Describe what you enjoy",
+      "expected": [
+        "sunny",
+        "cats",
+        "coffee"
+      ],
+      "found": [],
+      "answer": "i enjoy spending time with my good friend, mr. raju. no other friends were explicitly mentioned in t"
+    },
+    {
+      "test_num": 62,
+      "category": "typo_handling",
+      "query": "who is my frend?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the memories provided, your friend is mr. raju."
+    },
+    {
+      "test_num": 63,
+      "category": "typo_handling",
+      "query": "do you wrk at drc?",
+      "expected": [
+        "drc",
+        "yes"
+      ],
+      "found": [],
+      "answer": "i don't have information regarding your current workplace, but based on the memories provided, you a"
+    },
+    {
+      "test_num": 66,
+      "category": "typo_handling",
+      "query": "who are your frends?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 67,
+      "category": "typo_handling",
+      "query": "tell me ur likes",
+      "expected": [
+        "ai",
+        "reading"
+      ],
+      "found": [],
+      "answer": "my good friends are mr. raju. (memory 1)"
+    },
+    {
+      "test_num": 68,
+      "category": "typo_handling",
+      "query": "do you like pyton?",
+      "expected": [
+        "python"
+      ],
+      "found": [],
+      "answer": "parth's good friend is mr. raju (memory 1)."
+    },
+    {
+      "test_num": 75,
+      "category": "relationships",
+      "query": "Tell me about your relationships",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the provided memories:\n- parth is a good friend of mr. raju, who used to work with him at d"
+    },
+    {
+      "test_num": 78,
+      "category": "relationships",
+      "query": "List your connections",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju is a good friend of parth."
+    },
+    {
+      "test_num": 79,
+      "category": "relationships",
+      "query": "Who are the people in your network?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "mr. raju"
+    },
+    {
+      "test_num": 80,
+      "category": "relationships",
+      "query": "Tell me about people you know",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the memories provided, the people i know are mr. raju."
+    },
+    {
+      "test_num": 81,
+      "category": "yes_no",
+      "query": "Do you work?",
+      "expected": [
+        "yes",
+        "software"
+      ],
+      "found": [
+        "yes"
+      ],
+      "answer": "yes, i work. my good friend is mr. raju."
+    },
+    {
+      "test_num": 84,
+      "category": "yes_no",
+      "query": "Do you like AI?",
+      "expected": [
+        "yes",
+        "ai"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 87,
+      "category": "yes_no",
+      "query": "Do you prefer Python?",
+      "expected": [
+        "yes",
+        "python"
+      ],
+      "found": [],
+      "answer": "from the memories provided, parth is a good friend of mr. raju, who used to work with him at drc sys"
+    },
+    {
+      "test_num": 90,
+      "category": "yes_no",
+      "query": "Is Adil your friend?",
+      "expected": [
+        "yes",
+        "adil"
+      ],
+      "found": [
+        "adil"
+      ],
+      "answer": "adil"
+    },
+    {
+      "test_num": 96,
+      "category": "complex",
+      "query": "Who are your friends and where do they work?",
+      "expected": [
+        "raju",
+        "adil"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "my friends are mr. raju. he used to work with me at drc systems."
+    },
+    {
+      "test_num": 100,
+      "category": "complex",
+      "query": "Tell me your complete background",
+      "expected": [
+        "engineer",
+        "raju"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "my good friends are mr. raju."
+    },
+    {
+      "test_num": 102,
+      "category": "casual",
+      "query": "So what's up with you?",
+      "expected": [
+        "engineer",
+        "friend"
+      ],
+      "found": [
+        "friend"
+      ],
+      "answer": "based on the memories provided, your good friends are mr. raju."
+    },
+    {
+      "test_num": 103,
+      "category": "casual",
+      "query": "Give me the lowdown",
+      "expected": [
+        "engineer",
+        "raju"
+      ],
+      "found": [
+        "raju"
+      ],
+      "answer": "based on the memories provided, your good friend is mr. raju."
+    },
+    {
+      "test_num": 104,
+      "category": "casual",
+      "query": "What's new with you?",
+      "expected": [
+        "working",
+        "engineer"
+      ],
+      "found": [
+        "working"
+      ],
+      "answer": "based on the memories provided:\n- parth is a good friend of mr. raju\n- raju is now working as a free"
+    },
+    {
+      "test_num": 106,
+      "category": "negation",
+      "query": "Are you NOT a software engineer?",
+      "expected": [
+        "no",
+        "engineer"
+      ],
+      "found": [
+        "engineer"
+      ],
+      "answer": "based on the memories provided, i am a software engineer. my good friend is mr. raju, who used to wo"
+    },
+    {
+      "test_num": 107,
+      "category": "negation",
+      "query": "Is Raju still employed at DRC?",
+      "expected": [
+        "no",
+        "left"
+      ],
+      "found": [
+        "no"
+      ],
+      "answer": "raju is not employed at drc systems anymore. parth is a good friend of raju."
+    },
+    {
+      "test_num": 108,
+      "category": "negation",
+      "query": "You don't like rainy weather, right?",
+      "expected": [
+        "rainy",
+        "no"
+      ],
+      "found": [],
+      "answer": "based on the memories provided, raju is a good friend of parth."
+    },
+    {
+      "test_num": 109,
+      "category": "negation",
+      "query": "Raju is NOT your friend?",
+      "expected": [
+        "yes",
+        "friend"
+      ],
+      "found": [
+        "friend"
+      ],
+      "answer": "raju is my friend. parth and raju are good friends (memory 2)."
+    },
+    {
+      "test_num": 110,
+      "category": "negation",
+      "query": "You're not a freelancer?",
+      "expected": [
+        "no",
+        "engineer"
+      ],
+      "found": [
+        "no"
+      ],
+      "answer": "based on the provided memories, it is clear that parth is good friends with mr. raju, who now works "
+    }
+  ]
+}
