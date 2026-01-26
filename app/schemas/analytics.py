@@ -11,8 +11,12 @@ class UsageSummary(BaseModel):
     total_credit_limit: float = 10000.0 # Standard limit
     month_query_count: int
     query_growth_percent: float # vs last month
-
+    
 class AnalyticsResponse(BaseModel):
     summary: UsageSummary
     credits_daily: List[ChartPoint]
     queries_daily: List[ChartPoint]
+    usage_trend: List[ChartPoint] 
+    next_billing_date: str
+    next_billing_amount: float
+    period: str # 'daily', 'weekly', 'monthly'

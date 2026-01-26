@@ -1,0 +1,16 @@
+
+[1] Create Plans (Admin)
+ℹ️  Plan Free already exists
+✅ Created plan: Pro
+✅ Created plan: Enterprise
+
+[2] List Plans (User)
+✅ User listed 3 plans
+
+[3] Upgrade to Pro (User)
+✅ Upgraded to Pro. New Balance: 10200.0
+
+[4] Assign Enterprise (Admin)
+✅ Assigned Enterprise. New Balance: 110200.0
+
+🎉 Verification Complete

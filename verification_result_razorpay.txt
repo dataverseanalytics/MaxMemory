@@ -1,0 +1,8 @@
+
+[1] Testing Create Order
+✅ Order Created: order_S8Vq83Aw6z2BE0
+
+[2] Testing Verify Payment (Simulating Success)
+✅ Payment Verified Successfully
+New Balance: 10100.0
+✅ Credits added correctly

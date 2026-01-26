@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, profile, memory, project, conversation, credits
+from app.api.v1.endpoints import auth, profile, memory, project, conversation, credits, admin, subscriptions
 
 api_router = APIRouter()
 
@@ -44,3 +44,18 @@ api_router.include_router(
     prefix="/credits",
     tags=["Credits"]
 )
+
+# Include admin routes
+api_router.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["Admin"]
+)
+
+# Include subscription routes
+api_router.include_router(
+    subscriptions.router,
+    prefix="/subscriptions",
+    tags=["Subscriptions"]
+)
+

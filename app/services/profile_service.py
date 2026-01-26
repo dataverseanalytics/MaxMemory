@@ -82,18 +82,46 @@ class ProfileService:
     
     @staticmethod
     def delete_account(user: User, db: Session) -> dict:
-        """Delete user account (soft delete by deactivating)"""
-        logger.info(f"🗑️ Account deletion request for: {user.email}")
+        """Delete user account (Permanent delete)"""
+        logger.info(f"🗑️ Permanent account deletion request for: {user.email}")
         
-        # Soft delete - just deactivate the account
-        logger.info(f"⚠️  Deactivating account: {user.email}")
-        user.is_active = False
+        # Import models to delete dependencies
+        from app.models.project import Project
+        from app.models.chat import Conversation, Message
+        from app.models.credit import CreditTransaction
         
-        logger.info(f"💾 Saving account status to database")
+        # 1. Delete Credit Transactions
+        db.query(CreditTransaction).filter(CreditTransaction.user_id == user.id).delete()
+        
+        # 2. Get user conversations to delete messages
+        user_conversations = db.query(Conversation).filter(Conversation.user_id == user.id).all()
+        conversation_ids = [c.id for c in user_conversations]
+        
+        if conversation_ids:
+            # Delete messages in those conversations
+            db.query(Message).filter(Message.conversation_id.in_(conversation_ids)).delete(synchronize_session=False)
+            # Delete conversations
+            db.query(Conversation).filter(Conversation.id.in_(conversation_ids)).delete(synchronize_session=False)
+            
+        # 3. Delete Projects
+        db.query(Project).filter(Project.user_id == user.id).delete()
+        
+        # 4. Delete Avatar file if exists
+        if user.avatar_url:
+            from app.utils.file_upload import delete_avatar_file
+            try:
+                delete_avatar_file(user.avatar_url)
+            except Exception as e:
+                logger.error(f"Failed to delete avatar file: {e}")
+
+        # 5. Delete User
+        db.delete(user)
+        
+        logger.info(f"💾 Committing deletion to database")
         db.commit()
-        logger.info(f"✅ Account deactivated successfully: {user.email}")
+        logger.info(f"✅ Account permanently deleted: {user.email}")
         
-        return {"message": "Account deleted successfully"}
+        return {"message": "Account permanently deleted"}
     
     @staticmethod
     async def upload_avatar(user: User, avatar_url: str, db: Session) -> User:

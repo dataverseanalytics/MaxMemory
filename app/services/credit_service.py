@@ -88,61 +88,137 @@ class CreditService:
         db.commit()
         return user.credits_balance
 
-    def get_usage_analytics(self, user_id: int, db: Session):
-        """Aggregate usage stats for dashboard"""
-        from sqlalchemy import func, extract
+    def get_usage_analytics(self, user_id: int, db: Session, period: str = "daily"):
+        """Aggregate usage stats for dashboard with filtering"""
+        from sqlalchemy import func
         from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
         
         now = datetime.now()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # 1. Total Credits Used This Month
-        # filter for negative amounts (usage) in current month
+        # 1. Billing Info (Mocked based on user creation or fixed logic)
+        # Assuming billing cycle starts on the day user was created. 
+        # For now, we'll mock it to be the 15th of next month as per design or based on current date.
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        billing_day = user.created_at.day if user and user.created_at else 1
+        # Handle edge cases for dates > 28
+        billing_day = min(billing_day, 28) 
+        
+        next_billing_date = now.replace(day=billing_day)
+        if next_billing_date < now:
+            next_billing_date = next_billing_date + relativedelta(months=1)
+            
+        next_billing_amount = 29.0 # Standard plan mock
+        
+        # 2. Total Credits Used This Month & Query Count
         used_month = db.query(func.sum(CreditTransaction.amount)).filter(
             CreditTransaction.user_id == user_id,
             CreditTransaction.amount < 0,
             CreditTransaction.created_at >= start_of_month
         ).scalar() or 0.0
         
-        # 2. Query Count This Month
-        # Count 'USAGE' transactions
         query_count = db.query(func.count(CreditTransaction.id)).filter(
             CreditTransaction.user_id == user_id,
             CreditTransaction.transaction_type == "USAGE",
             CreditTransaction.created_at >= start_of_month
         ).scalar() or 0
         
-        # 3. Daily Credits (Last 7 days for chart)
-        # Using simple date truncation. 
-        # Note: SQLite date functions are different from Postgres. Assuming standard SA or Postgres/SQLite agnostic if possible.
-        # For simplicity in SA generic:
-        seven_days_ago = now - timedelta(days=7)
-        
-        # Group by date
-        daily_credits = db.query(
-            func.date(CreditTransaction.created_at).label("date"),
-            func.sum(CreditTransaction.amount).label("total")
-        ).filter(
-            CreditTransaction.user_id == user_id,
-            CreditTransaction.amount < 0,
-            CreditTransaction.created_at >= seven_days_ago
-        ).group_by("date").all()
-        
-        # 4. Daily Queries
-        daily_queries = db.query(
-            func.date(CreditTransaction.created_at).label("date"),
-            func.count(CreditTransaction.id).label("count")
-        ).filter(
+        # Growth calculation (Mock vs last month for now, or implement real comparison)
+        # To do real comparison:
+        start_of_last_month = start_of_month - relativedelta(months=1)
+        query_count_last_month = db.query(func.count(CreditTransaction.id)).filter(
             CreditTransaction.user_id == user_id,
             CreditTransaction.transaction_type == "USAGE",
-            CreditTransaction.created_at >= seven_days_ago
-        ).group_by("date").all()
+            CreditTransaction.created_at >= start_of_last_month,
+            CreditTransaction.created_at < start_of_month
+        ).scalar() or 0
+        
+        if query_count_last_month > 0:
+            query_growth = ((query_count - query_count_last_month) / query_count_last_month) * 100
+        else:
+            query_growth = 100 if query_count > 0 else 0
 
+        # 3. Chart Data based on Period
+        if period == "weekly":
+            # Last 12 weeks
+            start_date = now - timedelta(weeks=12)
+            # Group by week is tricky in pure SQL across DBs. 
+            # We will fetch daily and aggregate in Python for flexibility.
+            date_format = "%Y-%W" # Year-Week
+            days_back = 84 # 12 weeks
+        elif period == "monthly":
+            # Last 12 months
+            start_date = now - relativedelta(months=12)
+            date_format = "%Y-%m" # Year-Month
+            days_back = 365
+        else:
+            # Daily (Default) - Last 30 days
+            start_date = now - timedelta(days=30)
+            date_format = "%Y-%m-%d"
+            days_back = 30
+            
+        # Fetch all relevant txs
+        txs = db.query(CreditTransaction).filter(
+            CreditTransaction.user_id == user_id,
+            CreditTransaction.created_at >= start_date
+        ).all()
+        
+        # Aggregate in Python
+        credits_data = {}
+        queries_data = {}
+        
+        # Initialize periods (to show 0s) - simplified
+        # For a perfect chart we would pre-fill all dates/weeks/months
+        
+        for tx in txs:
+            if period == "daily":
+                key = tx.created_at.strftime("%a") # Mon, Tue... as per design? 
+                # Design shows "Mon", "Tue" etc. But that's ambiguous for 30 days.
+                # Design image shows about 7 points. "Queries Over Time".
+                # If "Daily" filter means "Last 7 days" -> Mon, Tue...
+                # If "Daily" means "Last 30 days" -> Date string.
+                # Let's align with the image which shows ~7 days.
+                # If the user selects "Daily", maybe we show Last 7 days?
+                # But typically "Daily" view might show 30 days. 
+                # Let's stick to the implementation plan: 
+                # Daily = Last 30 days (Plan said 30).
+                # But Image shows 7 days (Mon-Sun).
+                # Let's adjust "Daily" to be Last 7 Days to match the specific "Mon...Sun" labels in the mockup?
+                # No, the mockup labels might be just specific to that view.
+                # Let's stick to a robust format: YYYY-MM-DD for keys, frontend handles display labels.
+                key = tx.created_at.strftime("%Y-%m-%d")
+            elif period == "weekly":
+                key = tx.created_at.strftime("%Y-W%U")
+            elif period == "monthly":
+                key = tx.created_at.strftime("%Y-%m")
+            
+            if tx.amount < 0:
+                credits_data[key] = credits_data.get(key, 0) + abs(tx.amount)
+            
+            if tx.transaction_type == "USAGE":
+                queries_data[key] = queries_data.get(key, 0) + 1
+
+        # Sort and Format
+        credits_chart = [{"date": k, "value": v} for k, v in sorted(credits_data.items())]
+        queries_chart = [{"date": k, "value": v} for k, v in sorted(queries_data.items())]
+        
         return {
-            "used_month": abs(used_month),
-            "query_count": query_count,
-            "daily_credits": [{"date": str(r[0]), "value": abs(r[1] or 0)} for r in daily_credits],
-            "daily_queries": [{"date": str(r[0]), "value": r[1]} for r in daily_queries]
+            "summary": {
+                "credits_used_this_month": abs(used_month),
+                "month_query_count": query_count,
+                "query_growth_percent": round(query_growth, 1),
+                "total_credit_limit": 10000.0
+            },
+            "credits_daily": credits_chart,
+            "queries_daily": queries_chart,
+            "usage_trend": queries_chart, # Reusing queries for trend for now
+            "next_billing_date": next_billing_date.strftime("%B %d, %Y"),
+            "next_billing_amount": next_billing_amount,
+            "period": period
         }
+
+
 
 credit_service = CreditService()

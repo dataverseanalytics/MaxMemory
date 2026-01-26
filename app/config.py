@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     AURA_INSTANCENAME: str = ""
     UPLOAD_DIR: str = "uploads"
     
+    # Razorpay
+    RAZORPAY_KEY_ID: str = "rzp_test_S8VlIRcjTMeDav"
+    RAZORPAY_KEY_SECRET: str = "h7n4MOgogqK13Nm3pjsrGp3K"
+    
     # Model Configuration
     DEFAULT_MODEL: str = "gpt-4o-mini"
     

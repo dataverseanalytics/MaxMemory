@@ -35,3 +35,6 @@ faiss-cpu
 tiktoken
 PyPDF2
 python-docx
+
+# Payment
+razorpay

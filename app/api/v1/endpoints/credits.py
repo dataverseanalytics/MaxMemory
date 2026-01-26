@@ -65,23 +65,13 @@ from app.schemas.analytics import AnalyticsResponse, UsageSummary, ChartPoint
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
+    period: str = "daily",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get usage analytics for dashboard"""
-    stats = credit_service.get_usage_analytics(current_user.id, db)
-    
-    # Calculate mock growth (vs last month)
-    # Ideally we'd query last month too, but for MVP we use random/static or implement real logic
-    growth = 12.5 # Mock: +12.5%
-    
-    return {
-        "summary": {
-            "credits_used_this_month": stats["used_month"],
-            "total_credit_limit": 10000.0,
-            "month_query_count": stats["query_count"],
-            "query_growth_percent": growth
-        },
-        "credits_daily": stats["daily_credits"],
-        "queries_daily": stats["daily_queries"]
-    }
+    """
+    Get usage analytics for dashboard
+    period: 'daily', 'weekly', 'monthly'
+    """
+    return credit_service.get_usage_analytics(current_user.id, db, period)
+
