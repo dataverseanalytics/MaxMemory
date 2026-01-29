@@ -4,7 +4,7 @@ import shutil
 
 from sqlalchemy.orm import Session
 
-from app.schemas.memory import ChatRequest, ChatResponse, DocumentResponse, UploadResponse
+from app.schemas.memory import ChatRequest, ChatResponse, DocumentResponse, UploadResponse, MemoriesListResponse
 from app.services.file_service import file_service
 from app.services.memory_service import memory_service
 from app.services.chat_service import chat_service
@@ -64,13 +64,30 @@ async def get_documents(project_id: int, current_user: User = Depends(get_curren
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/memories", response_model=List[Dict[str, Any]])
+@router.get("/memories", response_model=MemoriesListResponse)
 async def get_recent_memories(project_id: int, limit: int = 10, current_user: User = Depends(get_current_user)):
     """
-    Get recently added memories (for the dashboard grid).
+    Get recently added memories with document counts and total memory count.
+    Returns:
+    - total_memory_count: Total number of memories for this user and project
+    - document_counts: List of all documents with their memory counts
+    - memory_list: Recently added memories (for the dashboard grid)
     """
     try:
-        return memory_service.get_recent_memories(limit=limit, user_id=str(current_user.id), project_id=str(project_id))
+        # Get total memory count
+        total_count = memory_service.get_total_memory_count(user_id=str(current_user.id), project_id=str(project_id))
+        
+        # Get document counts
+        document_counts = memory_service.get_memories_by_document(user_id=str(current_user.id), project_id=str(project_id))
+        
+        # Get recent memories
+        memory_list = memory_service.get_recent_memories(limit=limit, user_id=str(current_user.id), project_id=str(project_id))
+        
+        return MemoriesListResponse(
+            total_memory_count=total_count,
+            document_counts=document_counts,
+            memory_list=memory_list
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

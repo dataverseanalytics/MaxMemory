@@ -414,4 +414,15 @@ class MemoryService:
         
         logger.info("Cleared project memories and rebuilt index")
 
+    def get_total_memory_count(self, user_id: str, project_id: str) -> int:
+        """Get total count of memories for user and project"""
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (m:Memory {user_id: $user_id, project_id: $project_id})
+                RETURN count(m) as total_count
+            """, user_id=user_id, project_id=project_id)
+            
+            record = result.single()
+            return record["total_count"] if record else 0
+
 memory_service = MemoryService()

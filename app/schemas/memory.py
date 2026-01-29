@@ -21,3 +21,8 @@ class UploadResponse(BaseModel):
     doc_id: str
     chunks: int
     status: str
+
+class MemoriesListResponse(BaseModel):
+    total_memory_count: int
+    document_counts: List[Dict[str, Any]]
+    memory_list: List[Dict[str, Any]]
