@@ -144,10 +144,15 @@ class MemoryService:
             
         return chunks
 
-    def add_document_memory(self, text: str, metadata: Dict[str, Any]):
+    def add_document_memory(self, text: str, metadata: Dict[str, Any], conversation_id: str = None):
         """
         Add a document's text to memory.
         Splits text into chunks, embeds them, and saves to Neo4j + FAISS.
+        
+        Args:
+            text: Document text to chunk
+            metadata: Dict with user_id, project_id, source, doc_id
+            conversation_id: Optional - if provided, memory is chat-specific
         """
         chunks = self._split_document(text) # Use the new split method
         
@@ -164,6 +169,8 @@ class MemoryService:
         for i, meta in enumerate(metadatas):
             meta["chunk_index"] = i
             meta["text"] = chunks[i] # Store text in metadata for retrieval convenience
+            if conversation_id:
+                meta["conversation_id"] = conversation_id  # NEW: Tag with conversation
         
         if self.vector_store is None:
             self.vector_store = FAISS.from_texts(vectors, self.embeddings, metadatas=metadatas)
@@ -177,17 +184,18 @@ class MemoryService:
             for i, chunk in enumerate(chunks):
                 session.run("""
                     MERGE (d:Document {id: $doc_id})
-                    ON CREATE SET d.source = $source, d.timestamp = datetime(), d.user_id = $user_id, d.project_id = $project_id
+                    ON CREATE SET d.source = $source, d.timestamp = datetime(), d.user_id = $user_id, d.project_id = $project_id, d.conversation_id = $conversation_id
                     
                     CREATE (m:Memory {text: $text})
                     SET m.chunk_index = $index, 
                         m.timestamp = datetime(),
                         m.priority = 1.0,
                         m.user_id = $user_id,
-                        m.project_id = $project_id
+                        m.project_id = $project_id,
+                        m.conversation_id = $conversation_id
                     
                     MERGE (d)-[:CONTAINS]->(m)
-                """, doc_id=doc_id, source=source, user_id=user_id, project_id=project_id, text=chunk, index=i)
+                """, doc_id=doc_id, source=source, user_id=user_id, project_id=project_id, conversation_id=conversation_id, text=chunk, index=i)
                 
                 # Relate previous chunk if exists
                 if i > 0:
@@ -197,12 +205,15 @@ class MemoryService:
                         MERGE (m1)-[:NEXT]->(m2)
                     """, prev_text=chunks[i-1], curr_text=chunk)
                     
-        logger.info(f"Added document {doc_id} with {len(chunks)} chunks")
+        logger.info(f"Added document {doc_id} with {len(chunks)} chunks to {'conversation ' + str(conversation_id) if conversation_id else 'project'}")
         return {"chunks": len(chunks), "doc_id": doc_id}
 
-    def add_chat_memory(self, query: str, answer: str, user_id: str, project_id: str):
+    def add_chat_memory(self, query: str, answer: str, user_id: str, project_id: str, conversation_id: str = None):
         """
         Add a chat interaction to memory.
+        
+        Args:
+            conversation_id: Optional - if provided, memory is chat-specific
         """
         # Combine query and answer for better context
         text = f"User: {query}\nAssistant: {answer}"
@@ -214,6 +225,10 @@ class MemoryService:
             "user_id": user_id,
             "project_id": project_id
         }
+        
+        # Add conversation_id if provided
+        if conversation_id:
+            metadata["conversation_id"] = conversation_id
         
         # Add to FAISS
         self.vector_store.add_texts([text], metadatas=[metadata])
@@ -228,14 +243,20 @@ class MemoryService:
                     m.timestamp = datetime(),
                     m.priority = 0.8,
                     m.user_id = $user_id,
-                    m.project_id = $project_id
-            """, text=text, user_id=user_id, project_id=project_id)
+                    m.project_id = $project_id,
+                    m.conversation_id = $conversation_id
+            """, text=text, user_id=user_id, project_id=project_id, conversation_id=conversation_id)
             
-        logger.info(f"Added chat memory for user {user_id} in project {project_id}")
+        logger.info(f"Added chat memory for user {user_id} in project {project_id}" + (f" for conversation {conversation_id}" if conversation_id else ""))
 
 
-    def query_memories(self, query: str, user_id: str, project_id: str, k: int = 5) -> List[Dict]:
-        """Retrieve relevant memories using hybrid search (Semantic + Graph) with user and project isolation"""
+    def query_memories(self, query: str, user_id: str, project_id: str, conversation_id: str = None, k: int = 5) -> List[Dict]:
+        """
+        Retrieve relevant memories using hybrid search (Semantic + Graph) with user and project isolation.
+        
+        Args:
+            conversation_id: Optional - if provided, filters to chat-specific memories + project-level memories
+        """
         if self.vector_store is None:
             return []
             
@@ -244,15 +265,25 @@ class MemoryService:
             try:
                 results = self.vector_store.similarity_search_with_score(search_query, k=search_k)
                 
-                # Filter by user_id AND project_id
+                # Filter by user_id AND project_id AND conversation_id (if provided)
                 filtered_results = []
                 for doc, score in results:
                     doc_user_id = doc.metadata.get("user_id")
                     doc_project_id = doc.metadata.get("project_id")
+                    doc_conversation_id = doc.metadata.get("conversation_id")
                     
-                    # Strict isolation: match both user and project
-                    if str(doc_user_id) == str(user_id) and str(doc_project_id) == str(project_id): 
-                        filtered_results.append((doc, score))
+                    # Check user and project match
+                    if str(doc_user_id) != str(user_id) or str(doc_project_id) != str(project_id):
+                        continue
+                    
+                    # If conversation_id provided, include project-level (NULL) + conversation-specific docs
+                    if conversation_id:
+                        if doc_conversation_id is None or str(doc_conversation_id) == str(conversation_id):
+                            filtered_results.append((doc, score))
+                    else:
+                        # No conversation filter, only include project-level docs
+                        if doc_conversation_id is None:
+                            filtered_results.append((doc, score))
                         
                 return filtered_results[:k]
             except Exception as e:
@@ -293,12 +324,25 @@ class MemoryService:
                 with self.driver.session() as session:
                     # Simple keyword match in Neo4j
                     for keyword in keywords[:3]:
-                        records = session.run("""
-                            MATCH (m:Memory)
-                            WHERE m.user_id = $user_id AND m.project_id = $project_id AND toLower(m.text) CONTAINS toLower($keyword)
-                            RETURN m.text as text, m.timestamp as timestamp, m.source as source
-                            LIMIT 3
-                        """, keyword=keyword, user_id=user_id, project_id=project_id)
+                        if conversation_id:
+                            # Get memories from conversation + project-level
+                            records = session.run("""
+                                MATCH (m:Memory)
+                                WHERE m.user_id = $user_id AND m.project_id = $project_id 
+                                AND (m.conversation_id = $conversation_id OR m.conversation_id IS NULL)
+                                AND toLower(m.text) CONTAINS toLower($keyword)
+                                RETURN m.text as text, m.timestamp as timestamp, m.source as source
+                                LIMIT 3
+                            """, keyword=keyword, user_id=user_id, project_id=project_id, conversation_id=conversation_id)
+                        else:
+                            # Get project-level memories only
+                            records = session.run("""
+                                MATCH (m:Memory)
+                                WHERE m.user_id = $user_id AND m.project_id = $project_id AND m.conversation_id IS NULL
+                                AND toLower(m.text) CONTAINS toLower($keyword)
+                                RETURN m.text as text, m.timestamp as timestamp, m.source as source
+                                LIMIT 3
+                            """, keyword=keyword, user_id=user_id, project_id=project_id)
                         
                         existing_texts = {doc.page_content for doc, _ in results}
                         for record in records:
@@ -329,18 +373,35 @@ class MemoryService:
             
         return memories
 
-    def get_recent_memories(self, user_id: str, project_id: str, limit: int = 10) -> List[Dict]:
-        """Get the most recently added memories across all documents for the valid user and project"""
+    def get_recent_memories(self, user_id: str, project_id: str, conversation_id: str = None, limit: int = 10) -> List[Dict]:
+        """
+        Get the most recently added memories across all documents for the valid user and project.
+        
+        Args:
+            conversation_id: Optional - if provided, filters to chat-specific memories + project-level memories
+        """
         # Fetch from Neo4j for metadata, we can't easily sort FAISS by time without metadata index
         # But we assume Neo4j is the source of truth for "Existence"
         with self.driver.session() as session:
-            result = session.run("""
-                MATCH (m:Memory {user_id: $user_id, project_id: $project_id})
-                OPTIONAL MATCH (d:Document)-[:CONTAINS]->(m)
-                RETURN m.text as text, m.timestamp as timestamp, COALESCE(d.source, m.source) as source, m.chunk_index as chunk_index
-                ORDER BY m.timestamp DESC
-                LIMIT $limit
-            """, limit=limit, user_id=user_id, project_id=project_id)
+            if conversation_id:
+                # Get memories from conversation + project-level
+                result = session.run("""
+                    MATCH (m:Memory {user_id: $user_id, project_id: $project_id})
+                    WHERE m.conversation_id = $conversation_id OR m.conversation_id IS NULL
+                    OPTIONAL MATCH (d:Document)-[:CONTAINS]->(m)
+                    RETURN m.text as text, m.timestamp as timestamp, COALESCE(d.source, m.source) as source, m.chunk_index as chunk_index
+                    ORDER BY m.timestamp DESC
+                    LIMIT $limit
+                """, limit=limit, user_id=user_id, project_id=project_id, conversation_id=conversation_id)
+            else:
+                # Get project-level memories only
+                result = session.run("""
+                    MATCH (m:Memory {user_id: $user_id, project_id: $project_id, conversation_id: NULL})
+                    OPTIONAL MATCH (d:Document)-[:CONTAINS]->(m)
+                    RETURN m.text as text, m.timestamp as timestamp, COALESCE(d.source, m.source) as source, m.chunk_index as chunk_index
+                    ORDER BY m.timestamp DESC
+                    LIMIT $limit
+                """, limit=limit, user_id=user_id, project_id=project_id)
             
             memories = []
             for record in result:
@@ -358,14 +419,38 @@ class MemoryService:
             return memories
 
 
-    def get_memories_by_document(self, user_id: str, project_id: str) -> List[Dict]:
-        """Get all memories grouped by document source for the user and project"""
+    def get_memories_by_document(self, user_id: str, project_id: str, conversation_id: str = None) -> List[Dict]:
+        """
+        Get all memories grouped by document source for the user and project.
+        
+        Args:
+            conversation_id: Optional - if provided, filters to chat-specific documents + project-level docs
+        """
         with self.driver.session() as session:
-            result = session.run("""
-                MATCH (d:Document {user_id: $user_id, project_id: $project_id})-[:CONTAINS]->(m:Memory)
-                RETURN d.source as source, d.id as doc_id, d.timestamp as timestamp, count(m) as memory_count, collect(m.text)[0..1] as preview
-                ORDER BY timestamp DESC
-            """, user_id=user_id, project_id=project_id)
+            if conversation_id:
+                # Get documents for specific chat + project-level docs
+                result = session.run("""
+                    MATCH (d:Document {user_id: $user_id, project_id: $project_id})
+                    WHERE d.conversation_id = $conversation_id OR d.conversation_id IS NULL
+                    MATCH (d)-[:CONTAINS]->(m:Memory)
+                    RETURN d.source as source, d.id as doc_id, d.timestamp as timestamp, count(m) as memory_count, collect(m.text)[0..1] as preview
+                    ORDER BY timestamp DESC
+                """, 
+                user_id=user_id, 
+                project_id=project_id,
+                conversation_id=conversation_id
+                )
+            else:
+                # Get only project-level documents
+                result = session.run("""
+                    MATCH (d:Document {user_id: $user_id, project_id: $project_id, conversation_id: NULL})
+                    MATCH (d)-[:CONTAINS]->(m:Memory)
+                    RETURN d.source as source, d.id as doc_id, d.timestamp as timestamp, count(m) as memory_count, collect(m.text)[0..1] as preview
+                    ORDER BY timestamp DESC
+                """, 
+                user_id=user_id, 
+                project_id=project_id
+                )
             
             documents = []
             for record in result:
@@ -414,13 +499,32 @@ class MemoryService:
         
         logger.info("Cleared project memories and rebuilt index")
 
-    def get_total_memory_count(self, user_id: str, project_id: str) -> int:
-        """Get total count of memories for user and project"""
+    def get_total_memory_count(self, user_id: str, project_id: str, conversation_id: str = None) -> int:
+        """
+        Get total count of memories for user and project.
+        
+        Args:
+            conversation_id: Optional - if provided, counts chat-specific + project-level memories
+        """
         with self.driver.session() as session:
-            result = session.run("""
-                MATCH (m:Memory {user_id: $user_id, project_id: $project_id})
-                RETURN count(m) as total_count
-            """, user_id=user_id, project_id=project_id)
+            if conversation_id:
+                result = session.run("""
+                    MATCH (m:Memory {user_id: $user_id, project_id: $project_id})
+                    WHERE m.conversation_id = $conversation_id OR m.conversation_id IS NULL
+                    RETURN count(m) as total_count
+                """, 
+                user_id=user_id, 
+                project_id=project_id,
+                conversation_id=conversation_id
+                )
+            else:
+                result = session.run("""
+                    MATCH (m:Memory {user_id: $user_id, project_id: $project_id, conversation_id: NULL})
+                    RETURN count(m) as total_count
+                """, 
+                user_id=user_id, 
+                project_id=project_id
+                )
             
             record = result.single()
             return record["total_count"] if record else 0

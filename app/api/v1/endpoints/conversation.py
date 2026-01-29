@@ -124,7 +124,8 @@ async def chat_in_conversation(
     memories = memory_service.query_memories(
         query=request.query, 
         user_id=str(current_user.id), 
-        project_id=str(conversation.project_id)
+        project_id=str(conversation.project_id),
+        conversation_id=str(conversation_id)
     )
     
     # 4. Generate Response
@@ -157,7 +158,8 @@ async def chat_in_conversation(
         query=request.query, 
         answer=answer_text, 
         user_id=str(current_user.id), 
-        project_id=str(conversation.project_id)
+        project_id=str(conversation.project_id),
+        conversation_id=str(conversation_id)
     )
     
     # 7. Deduct Credits

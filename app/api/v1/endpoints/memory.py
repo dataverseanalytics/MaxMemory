@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends, Query
 from typing import List, Dict, Any
 import shutil
 
@@ -12,6 +12,7 @@ from app.services.credit_service import credit_service
 from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.models.user import User
+from app.models.chat import Conversation
 
 router = APIRouter()
 
@@ -19,13 +20,33 @@ router = APIRouter()
 async def upload_file(
     project_id: int,
     file: UploadFile = File(...),
+    conversation_id: int = Query(None),
     background_tasks: BackgroundTasks = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Upload a file (PDF, TXT, DOCX), extract text, and ingest into memory.
+    
+    Query Parameters:
+        - project_id: Required
+        - conversation_id: Optional - if provided, document is chat-specific
     """
     try:
+        # Verify conversation belongs to user and project if provided
+        if conversation_id:
+            conv = db.query(Conversation).filter(
+                Conversation.id == conversation_id,
+                Conversation.user_id == current_user.id,
+                Conversation.project_id == project_id
+            ).first()
+            
+            if not conv:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Conversation not found or doesn't belong to this project"
+                )
+        
         # Save file
         file_path = await file_service.save_file(file, file.filename)
         
@@ -34,15 +55,18 @@ async def upload_file(
         if not text:
             raise HTTPException(status_code=400, detail="Could not extract text from file")
             
-        # Add to memory (sync for now, could be background)
-        # We use filename as source and doc_id
+        # Add to memory with conversation_id
         metadata = {
             "source": file.filename, 
             "doc_id": file.filename, 
             "user_id": str(current_user.id),
             "project_id": str(project_id)
         }
-        result = memory_service.add_document_memory(text, metadata)
+        result = memory_service.add_document_memory(
+            text, 
+            metadata,
+            conversation_id=str(conversation_id) if conversation_id else None
+        )
         
         return UploadResponse(
             filename=file.filename,
@@ -51,6 +75,8 @@ async def upload_file(
             status="success"
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -65,23 +91,59 @@ async def get_documents(project_id: int, current_user: User = Depends(get_curren
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/memories", response_model=MemoriesListResponse)
-async def get_recent_memories(project_id: int, limit: int = 10, current_user: User = Depends(get_current_user)):
+async def get_recent_memories(
+    project_id: int, 
+    conversation_id: int = Query(None),
+    limit: int = 10, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Get recently added memories with document counts and total memory count.
+    
+    Query Parameters:
+        - project_id: Required
+        - conversation_id: Optional - filter by chat
+        - limit: Default 10
+    
     Returns:
     - total_memory_count: Total number of memories for this user and project
     - document_counts: List of all documents with their memory counts
     - memory_list: Recently added memories (for the dashboard grid)
     """
     try:
+        # If conversation_id provided, verify it belongs to user/project
+        if conversation_id:
+            conv = db.query(Conversation).filter(
+                Conversation.id == conversation_id,
+                Conversation.user_id == current_user.id,
+                Conversation.project_id == project_id
+            ).first()
+            
+            if not conv:
+                raise HTTPException(status_code=404, detail="Conversation not found")
+        
         # Get total memory count
-        total_count = memory_service.get_total_memory_count(user_id=str(current_user.id), project_id=str(project_id))
+        total_count = memory_service.get_total_memory_count(
+            user_id=str(current_user.id), 
+            project_id=str(project_id),
+            conversation_id=str(conversation_id) if conversation_id else None
+        )
         
         # Get document counts
-        document_counts = memory_service.get_memories_by_document(user_id=str(current_user.id), project_id=str(project_id))
+        document_counts = memory_service.get_memories_by_document(
+            user_id=str(current_user.id), 
+            project_id=str(project_id),
+            conversation_id=str(conversation_id) if conversation_id else None
+        )
         
         # Get recent memories
-        memory_list = memory_service.get_recent_memories(limit=limit, user_id=str(current_user.id), project_id=str(project_id))
+        memory_list = memory_service.get_recent_memories(
+            limit=limit, 
+            user_id=str(current_user.id), 
+            project_id=str(project_id),
+            conversation_id=str(conversation_id) if conversation_id else None
+        )
         
         return MemoriesListResponse(
             total_memory_count=total_count,
